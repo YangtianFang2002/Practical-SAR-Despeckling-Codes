@@ -1,0 +1,120 @@
+# general settings
+
+# compare to MDN-t1 
+name: SARUSE-compare-t1
+model_type: SarUseModel
+scale: 1
+num_gpu: 1
+manual_seed: 42
+
+amp: false
+compile: false
+
+datasets:
+  train:
+    name: TrainSet
+    type: SarJointDataset
+    dataroot_gt: datasets/SARdata
+    synthetic_dataroot: datasets/AID/Images  # clean reference only
+    synthetic_ext: jpg
+    meta_info: datasets/train.txt
+    is_view_to_gray: true
+
+    io_backend:
+      type: disk
+
+    # data loader
+    crop_pad_size: 120
+
+    use_shuffle: true
+    use_hflip: true
+    use_rot: true
+
+    num_worker_per_gpu: 4
+    batch_size_per_gpu: 8
+
+    dataset_enlarge_ratio: 1
+    prefetch_mode: cuda
+    pin_memory: true
+
+  val:
+    type: SarDataset
+    dataroot_gt: datasets/SARdata
+    name: ValSetAll
+    meta_info: datasets/val.txt
+    is_view_to_gray: true
+
+    io_backend:
+      type: disk
+
+    crop_pad_size: 512
+
+    use_shuffle: true
+    use_hflip: false
+    use_rot: false
+
+network_g:
+  type: SARUSE
+
+# path
+path:
+  pretrain_network_g: ~
+  strict_load_g: true
+  resume_state: ~
+  check_resume: true
+
+# training settings
+train:
+  optim_g:
+    type: AdamW
+    lr: !!float 1e-4
+    weight_decay: !!float 1e-5
+    betas: [0.9, 0.999]
+
+  scheduler:
+    type: TrueCosineAnnealingLR
+    T_max: 55000
+    eta_min: !!float 1e-7
+
+  total_iter: 55000
+  warmup_iter: -1 # no warm up
+
+  pixel_opt:
+    type: MSELoss
+    loss_weight: 1.0
+    reduction: mean
+  
+  pixel_opt_1:
+    type: TVLoss
+    loss_weight: !!float 2e-6
+    reduction: mean
+
+# validation settings
+val:
+  val_freq: !!float 5e3
+  save_img: true
+  use_image: true  # for eval
+
+  metrics:
+    psnr: # metric name, can be arbitrary
+      type: calculate_psnr
+      crop_border: 0
+      test_y_channel: false
+    ssim:
+      type: calculate_ssim
+      crop_border: 0
+      test_y_channel: false
+
+# logging settings
+logger:
+  print_freq: 20
+  save_checkpoint_freq: !!float 2e4
+  use_tb_logger: true
+  wandb:
+    project: ~
+    resume_id: ~
+
+# dist training settings
+# dist_params:
+#   backend: nccl
+#   port: 29500
